@@ -1,73 +1,6 @@
-### Introduction
+### Task (programming part)
 
-This second programming assignment will require you to write an R
-function that is able to cache potentially time-consuming computations.
-For example, taking the mean of a numeric vector is typically a fast
-operation. However, for a very long vector, it may take too long to
-compute the mean, especially if it has to be computed repeatedly (e.g.
-in a loop). If the contents of a vector are not changing, it may make
-sense to cache the value of the mean so that when we need it again, it
-can be looked up in the cache rather than recomputed. In this
-Programming Assignment you will take advantage of the scoping rules of
-the R language and how they can be manipulated to preserve state inside
-of an R object.
-
-### Example: Caching the Mean of a Vector
-
-In this example we introduce the `<<-` operator which can be used to
-assign a value to an object in an environment that is different from the
-current environment. Below are two functions that are used to create a
-special object that stores a numeric vector and caches its mean.
-
-The first function, `makeVector` creates a special "vector", which is
-really a list containing a function to
-
-1.  set the value of the vector
-2.  get the value of the vector
-3.  set the value of the mean
-4.  get the value of the mean
-
-<!-- -->
-
-    makeVector <- function(x = numeric()) {
-            m <- NULL
-            set <- function(y) {
-                    x <<- y
-                    m <<- NULL
-            }
-            get <- function() x
-            setmean <- function(mean) m <<- mean
-            getmean <- function() m
-            list(set = set, get = get,
-                 setmean = setmean,
-                 getmean = getmean)
-    }
-
-The following function calculates the mean of the special "vector"
-created with the above function. However, it first checks to see if the
-mean has already been calculated. If so, it `get`s the mean from the
-cache and skips the computation. Otherwise, it calculates the mean of
-the data and sets the value of the mean in the cache via the `setmean`
-function.
-
-    cachemean <- function(x, ...) {
-            m <- x$getmean()
-            if(!is.null(m)) {
-                    message("getting cached data")
-                    return(m)
-            }
-            data <- x$get()
-            m <- mean(data, ...)
-            x$setmean(m)
-            m
-    }
-
-### Assignment: Caching the Inverse of a Matrix
-
-Matrix inversion is usually a costly computation and there may be some
-benefit to caching the inverse of a matrix rather than computing it
-repeatedly (there are also alternatives to matrix inversion that we will
-not discuss here). Your assignment is to write a pair of functions that
+Your assignment is to write a pair of functions that
 cache the inverse of a matrix.
 
 Write the following functions:
@@ -86,20 +19,131 @@ function in R. For example, if `X` is a square invertible matrix, then
 For this assignment, assume that the matrix supplied is always
 invertible.
 
-In order to complete this assignment, you must do the following:
 
-1.  Fork the GitHub repository containing the stub R files at
-    [https://github.com/rdpeng/ProgrammingAssignment2](https://github.com/rdpeng/ProgrammingAssignment2)
-    to create a copy under your own account.
-2.  Clone your forked GitHub repository to your computer so that you can
-    edit the files locally on your own machine.
-3.  Edit the R file contained in the git repository and place your
-    solution in that file (please do not rename the file).
-4.  Commit your completed R file into YOUR git repository and push your
-    git branch to the GitHub repository under your account.
-5.  Submit to Coursera the URL to your GitHub repository that contains
-    the completed R code for the assignment.
+### Example of the functions workflow
 
-### Grading
+We start with creation of a pair of 3 by 3 matrixes and calculating their sum.
 
-This assignment will be graded via peer assessment.
+> temp1 <- matrix(c(1, 2, 3, 4, 5, 6, 7, 8, 10), nrow = 3, ncol = 3)
+> temp2 <- matrix(1:9, nrow = 3, ncol = 3)
+> sum_temp <- temp1 + temp2
+
+Next, we create  special 'matrix' object using the 'temp1' matrix.
+
+> specialmatrix_temp <- makeCacheMatrix(temp1)
+
+Below is a check of the 'matrix' contents calling the 'get' method.
+
+> specialmatrix_temp$get()
+     [,1] [,2] [,3]
+[1,]    1    4    7
+[2,]    2    5    8
+[3,]    3    6   10
+
+The inverse of the matrix has not yet been calculated, as indicated by the call of the 'getinverse' method.
+
+> specialmatrix_temp$getinverse()
+NULL
+
+Let us now calculate the inverse by calling the 'CacheSolve' function over the earlier created object...
+
+> cacheSolve(specialmatrix_temp)
+           [,1]       [,2] [,3]
+[1,] -0.6666667 -0.6666667    1
+[2,] -1.3333333  3.6666667   -2
+[3,]  1.0000000 -2.0000000    1
+
+... and verify that the inverse value has been stored in the object by calling the 'getinverse' method again.
+
+> specialmatrix_temp$getinverse()
+           [,1]       [,2] [,3]
+[1,] -0.6666667 -0.6666667    1
+[2,] -1.3333333  3.6666667   -2
+[3,]  1.0000000 -2.0000000    1
+
+Attempting to calsulate the inverse again...
+
+> cacheSolve(specialmatrix_temp)
+getting cached data
+           [,1]       [,2] [,3]
+[1,] -0.6666667 -0.6666667    1
+[2,] -1.3333333  3.6666667   -2
+[3,]  1.0000000 -2.0000000    1
+
+... results in the message confirming that the inverse has been already calculated; the cached value is returned.
+
+Let us create another 'special matrix' object using the available sum of the matrixes and calculate the corresponding inverse value again.
+
+> specialmatrix_sum <- makeCacheMatrix(sum_temp)
+> cacheSolve(specialmatrix_sum)
+           [,1]      [,2] [,3]
+[1,]  0.1666667 -1.333333    1
+[2,] -1.6666667  3.833333   -2
+[3,]  1.0000000 -2.000000    1
+
+The 'getinverse' call below verifies that the inverse has been calculated and stored.
+
+> specialmatrix_sum$getinverse()
+           [,1]      [,2] [,3]
+[1,]  0.1666667 -1.333333    1
+[2,] -1.6666667  3.833333   -2
+[3,]  1.0000000 -2.000000    1
+
+The inverse of the earlier treated 'temp1' matrix is still available, since it belongs to another instance of the 'special matrix' type.
+
+> specialmatrix_temp$getinverse()
+           [,1]       [,2] [,3]
+[1,] -0.6666667 -0.6666667    1
+[2,] -1.3333333  3.6666667   -2
+[3,]  1.0000000 -2.0000000    1
+
+Let us now backup the existing object...
+
+> specialmatrix_temp_old <- specialmatrix_temp
+
+...and modify the earlier treated object by calling the 'makeCashMatrix' on the 'temp2' matrix. 
+
+> specialmatrix_temp <- makeCacheMatrix(temp2)
+
+Note that the inverse field has been emptied during the object modification and is not available any more.
+
+> specialmatrix_temp$getinverse()
+NULL
+
+The matrix is as follows.
+
+> specialmatrix_temp$get()
+     [,1] [,2] [,3]
+[1,]    1    4    7
+[2,]    2    5    8
+[3,]    3    6    9
+
+It is impossible, however, to calculate its inverse:
+
+> cacheSolve(specialmatrix_temp)
+ Error in solve.default(data, ...) : 
+  Lapack routine dgesv: system is exactly singular: U[3,3] = 0 
+
+Let us add some noise to the data using the 'set' method of the 'special matrix' object: 
+
+> specialmatrix_temp$get()
+     [,1] [,2] [,3]
+[1,]    1    4    7
+[2,]    2    5    8
+[3,]    3    6    9
+> specialmatrix_temp$set(specialmatrix_temp$get() + matrix(rnorm(9), nrow = 3, ncol = 3))
+> specialmatrix_temp$get()
+         [,1]     [,2]     [,3]
+[1,] 2.677229 2.051566 6.505770
+[2,] 3.066065 4.363392 8.009595
+[3,] 1.445053 4.728742 6.611745
+
+And now the inverse can be computed:
+
+> specialmatrix_temp$getinverse()
+NULL
+> cacheSolve(specialmatrix_temp)
+           [,1]       [,2]       [,3]
+[1,] -0.7990217  1.5226468 -1.0583489
+[2,] -0.7699912  0.7347768 -0.1324731
+[3,]  0.7253333 -0.8583022  0.4773024
